@@ -1,17 +1,16 @@
 /*!
-  * file setScreenColor.ino
-  * Full screen lighting, full screen display red, yellow, green, blue, blue, purple, white and other colors
-  * @Light up the full screen, switch the color every 5s, and cycle
-  *
-  * Copyright   [DFRobot](http://www.dfrobot.com), 2016
-  * Copyright   GNU Lesser General Public License
-  *
-  * version  V1.0
-  * date  2019-6-12
-  */
+ * @file setScreenColor.ino
+ * @brief Full screen lighting, full screen display red, yellow, green, blue, blue, purple, white and other colors.
+ * @n Light up the full screen, switch the color every 5s, and cycle
+ * @copyright   Copyright (c) 2010 DFRobot Co.Ltd (http://www.dfrobot.com)
+ * @license     The MIT License (MIT)
+ * @author [Arya](xue.peng@dfrobot.com)
+ * @version  V1.0.0
+ * @date  2019-6-12
+ * @url https://github.com/DFRobot/DFRobot_SerialScreen771
+ */
 
 #include <Arduino.h>
-#include <HardwareSerial.h>
 #include <SoftwareSerial.h>
 #include "DFRobot_SerialScreen771.h"
 
@@ -19,31 +18,30 @@
 SoftwareSerial Serial1(2, 3); //RX, TX
 #endif
 
-DFRobot_SerialScreen771 screen;
+DFRobot_SerialScreen771 screen(Serial1);
 
 void setup() {
     /*Initialize communication interface (Serial1) and debug interface (Serial)*/
     Serial.begin(115200);
     Serial1.begin(19200);
-    screen.begin(Serial1);
-    screen.setDbgSerial(Serial);
+    screen.begin();
     /*Set screen color*/
-    /*eColorMode_t: eColor_red = red
-                    eColor_yellow = yellow
-                    eColor_green = green
-                    eColor_cyan = cyan
-                    eColor_blue = blue
-                    eColor_purple = purple
-                    eColor_white = white
-                    eColor_black = black
+    /*eColorMode_t: eColorRed = red
+                    eColorYellow = yellow
+                    eColorGreen = green
+                    eColorCyan = cyan
+                    eColorBlue = blue
+                    eColorPurple = purple
+                    eColorWhite = white
+                    eColorBlack = black
     */
-    screen.setFullScreenColor(eColor_black);
+    screen.setFullScreenColor(screen.eColorBlack);
 }
 
 void loop() {
     /*Switch one screen color every 5s*/
-    eColorMode_t buf[]= {eColor_red, eColor_yellow, eColor_green, eColor_cyan, eColor_blue, eColor_purple, eColor_white};
-    for(int i=0; i < sizeof(buf)/sizeof(eColorMode_t); i++){
+    DFRobot_SerialScreen771::eColorMode_t buf[]= {screen.eColorRed, screen.eColorYellow, screen.eColorGreen, screen.eColorCyan, screen.eColorBlue, screen.eColorPurple, screen.eColorWhite,screen.eColorBlack};
+    for(int i=0; i < sizeof(buf)/sizeof(DFRobot_SerialScreen771::eColorMode_t); i++){
         screen.setFullScreenColor(buf[i]);
         delay(5000);
     }

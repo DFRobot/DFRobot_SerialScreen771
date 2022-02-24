@@ -1,60 +1,80 @@
+/*!
+ * @file DFRobot_SerialScreen771.cpp
+ * @brief Define the basic structure of class DFRobot_SerialScreen771 
+ *
+ * @copyright   Copyright (c) 2010 DFRobot Co.Ltd (http://www.dfrobot.com)
+ * @license     The MIT License (MIT)
+ * @author [Arya](xue.peng@dfrobot.com)
+ * @version  V1.0.0
+ * @date  2019-6-12
+ * @url https://github.com/DFRobot/DFRobot_SerialScreen771
+ */
+
 #include "DFRobot_SerialScreen771.h"
 
-Stream *dbg = NULL;
+#define TYPE_INFROMTION   0X01   //< type information
+#define TYPE_BRIGHT       0X02   //< type bright
+#define TYPE_SPEED        0x03   //< type speed
+#define TYPE_LIST         0X04   //< type list
+#define FULLSCREEN        0x32   //< the maximum number of characters displayed on the full screen
 
-DFRobot_SerialScreen771::DFRobot_SerialScreen771()
-  :s(NULL),cs(0),order(0),moveMode(eMove_hold),backgroud(eColor_black),font(eColor_blue),brightLevel(eBrightLevel_5),speedLevel(eSpeedLevel_1){
-	memset(sendBuf, 0 ,sizeof(sendBuf));
-    memset(message, 0, sizeof(message));
-    for(int i = 0 ; i < BANNER; i++){
-        M[i] = 0x41 + i;
-    }
-    memcpy(M, "ABCDEFGHI", BANNER);
+DFRobot_SerialScreen771::DFRobot_SerialScreen771(Stream &s_)
+  :_s(&s_),_order(0){
+      _moveMode    = eMoveHold;
+      _backgroud   = eColorBlack;
+      _font        = eColorBlue;
+      _brightLevel = eBrightLevel_5;
+      _speedLevel  = eSpeedLevel_1;
+    
+	  memset(_sendBuf, 0 ,sizeof(_sendBuf));
+      memset(_message, 0, sizeof(_message));
+      for(int i = 0 ; i < BANNER; i++){
+          _M[i] = 0x41 + i;
+      }
+      memcpy(_M, "ABCDEFGHI", BANNER);
 }
 
 DFRobot_SerialScreen771::~DFRobot_SerialScreen771()
 {
 }
 
-bool DFRobot_SerialScreen771::DFRobot_SerialScreen771::begin(Stream &s_){
-    s = &s_;
-    if(s == NULL){
+bool DFRobot_SerialScreen771::DFRobot_SerialScreen771::begin(){
+    if(_s == NULL){
         return false;
     }
-    //setMessage("DFRobot");
     return true;
 }
 
 bool DFRobot_SerialScreen771::setMoveMode(eMoveMode_t m_){
     bool ret = true;
-    if((m_ < eMove_left) | (m_ == 0x34) | (m_ > eMove_flash)){
+    if((m_ < eMoveLeft) | (m_ == 0x34) | (m_ > eMoveFlash)){
         return false;
     }
-    moveMode = m_;
-    if(strlen(message) == 0){
-        memcpy(message, "DFRobot", strlen("DFRobot"));
-        message[strlen("DFRobot")] = '\0';
+    _moveMode = m_;
+    if(strlen(_message) == 0){
+        memcpy(_message, "DFRobot", strlen("DFRobot"));
+        _message[strlen("DFRobot")] = '\0';
     }
-    DBG(message);
-    setMessage(message);
+    DBG(_message);
+    displayMessage(_message);
     return ret;
 }
 
 bool DFRobot_SerialScreen771::setDispalyColor(eColorMode_t font_, eColorMode_t back_){
-    backgroud = back_;
-    font = font_;
-    char s1[MESSAGE_SIZE] = {0x3C, 0x43,(char)(font&0x00FF), (char)(backgroud&0x00FF), 0x3E};
-    if(strlen(message) == 0){
-        memset(message, 0, sizeof(message));
-        memcpy(message, "DFRobot", strlen("DFRobot"));
-        message[strlen("DFRobot")] = '\0';
+    _backgroud = back_;
+    _font = font_;
+    char s1[MESSAGE_SIZE] = {0x3C, 0x43,(char)(_font&0x00FF), (char)(_backgroud&0x00FF), 0x3E};
+    if(strlen(_message) == 0){
+        memset(_message, 0, sizeof(_message));
+        memcpy(_message, "DFRobot", strlen("DFRobot"));
+        _message[strlen("DFRobot")] = '\0';
     }
-    DBG(message);
-    if((strlen(s1)+strlen(message)) > MESSAGE_SIZE){
+    DBG(_message);
+    if((strlen(s1)+strlen(_message)) > MESSAGE_SIZE){
         DBG("packed !");
         return false;
     }
-    memcpy((s1+strlen(s1)), message, strlen(message));
+    memcpy((s1+strlen(s1)), _message, strlen(_message));
     pPacketHeader_t header = packed(TYPE_INFROMTION, s1, strlen(s1));
     if(header == NULL){
         DBG("Memory ERROR!");
@@ -68,7 +88,7 @@ bool DFRobot_SerialScreen771::setDispalyColor(eColorMode_t font_, eColorMode_t b
 bool DFRobot_SerialScreen771::setBrightness(eBrightLevel_t b_){
     char mess[1];
     mess[0] = b_;
-    brightLevel = b_;
+    _brightLevel = b_;
     //message[0] = b_;
     pPacketHeader_t header = packed(TYPE_BRIGHT, mess, strlen(mess));
     if(header == NULL){
@@ -98,67 +118,97 @@ bool DFRobot_SerialScreen771::setMoveSpeed(eSpeedLevel_t s_){
     return true;
 }
 
+bool DFRobot_SerialScreen771::setMessageList(eBanner_t banN, const char *message_){
+    return setMessageList((uint8_t)banN, message_);
+}
+
 bool DFRobot_SerialScreen771::setMessageList(uint8_t banN, const char *message_){
     if(strlen(message_) > MESSAGE_SIZE ){
        return false;
     }
-    if((banN < 1) | (banN > BANNER)){
-        banN = 1;
-        DBG("BANNER ERROR!");
+    if(!banN) return false;
+    memset(_message, 0, sizeof(_message));
+    memcpy(_message, message_ ,strlen(message_));
+    _message[strlen(message_)] = '\0';
+    for(int i = 0; i < BANNER; i++){
+        if(banN & (1 << i)){
+            _order = i;
+            pPacketHeader_t header = packed(TYPE_INFROMTION, _message, strlen(_message));
+            if(header == NULL){
+                DBG("Memory ERROR!");
+                return false;
+            }
+            sendPacket(header);
+            free(header);
+            delay(5);
+        }
     }
-    order = banN - 1;
-    memset(message, 0, sizeof(message));
-    memcpy(message, message_ ,strlen(message_));
-    message[strlen(message_)] = '\0';
-    pPacketHeader_t header = packed(TYPE_INFROMTION, message, strlen(message));
-    if(header == NULL){
-        DBG("Memory ERROR!");
-        return false;
-    }
-    DBG("payload:");
-    for(int i = 0; i< header->length.lenL; i++){
-        DBG(header->payload[i],HEX);
-        DBG(i);
-    }
-    sendPacket(header);
-    free(header);
     return true;
 }
 
-bool DFRobot_SerialScreen771::displayBanner(const char *message_){
-    if((strcmp(message_,"A") < 0) | (strcmp(message_,"JIHGFEDCBA") > 0)){
-        DBG("params ERROR!");
-        message_ = "A";
+void DFRobot_SerialScreen771::displayBanner(uint8_t banN){
+    String message = "";
+    if(!banN) return;
+    for(int i = 0; i < 8; i++){
+        if(banN & (1 << i)){
+            switch(i){
+                case 0:
+                       message += 'A';
+                       break;
+                case 1:
+                       message += 'B';
+                       break;
+                case 2:
+                       message += 'C';
+                       break;
+                case 3:
+                       message += 'D';
+                       break;
+                case 4:
+                       message += 'E';
+                       break;
+                case 5:
+                       message += "F";
+                       break;
+                case 6:
+                       message += "G";
+                       break;
+                case 7:
+                       message += "H";
+                       break;
+            }
+        }
     }
-    pPacketHeader_t header = packed(TYPE_LIST, message_, strlen(message_));
+    DBG(message);
+    Serial.println(message.c_str());
+    Serial.println( strlen(message.c_str()));
+    pPacketHeader_t header = packed(TYPE_LIST, message.c_str(), strlen(message.c_str()));
     if(header == NULL){
         DBG("Memory ERROR!");
-        return false;
-    }
-    DBG("payload:");
-    for(int i = 0; i< header->length.lenL; i++){
-        DBG(header->payload[i],HEX);
-        DBG(i);
+        return ;
     }
     sendPacket(header);
     free(header);
-    return true;
+    return;
+}
+void DFRobot_SerialScreen771::displayBanner(eBanner_t banN){
+    return displayBanner((uint8_t)banN);
 }
 
-bool DFRobot_SerialScreen771::setMessage(const char *message_){
+void DFRobot_SerialScreen771::displayMessage(const char *message_){
     if(strlen(message_) > MESSAGE_SIZE){
-       return false;
+       return ;
     }
     char mess[250];
     memcpy(mess, message_, strlen(message_));
     mess[strlen(message_)] = '\0';
-    memset(message, 0, sizeof(message));
-    memcpy(message, mess, strlen(mess));
-    message[strlen(mess)] = '\0';
-    pPacketHeader_t header = packed(TYPE_INFROMTION, message, strlen(message));
+    memset(_message, 0, sizeof(_message));
+    memcpy(_message, mess, strlen(mess));
+    _message[strlen(mess)] = '\0';
+    pPacketHeader_t header = packed(TYPE_INFROMTION, _message, strlen(_message));
     if(header == NULL){
         DBG("Memory ERROR!");
-        return false;
+        return;
     }
     DBG("payload:");
     for(int i = 0; i< header->length.lenL; i++){
@@ -167,16 +217,14 @@ bool DFRobot_SerialScreen771::setMessage(const char *message_){
     }
     sendPacket(header);
     free(header);
-    return true;
-    
 }
 
 bool DFRobot_SerialScreen771::setFullScreenColor(eColorMode_t color_){
-    backgroud = color_;
-    font = color_;
-    moveMode = eMove_hold;
-    order = 0;
-    char s1[MESSAGE_SIZE] = {0x3C, 0x43,(char)(font&0x00FF), (char)(backgroud&0x00FF), 0x3E};
+    _backgroud = color_;
+    _font = color_;
+    _moveMode = eMoveHold;
+    _order = 0;
+    char s1[MESSAGE_SIZE] = {0x3C, 0x43,(char)(_font&0x00FF), (char)(_backgroud&0x00FF), 0x3E};
     memset((s1+strlen(s1)), 0x20, ((FULLSCREEN - strlen(s1)*2 - 4)/2));
     s1[((FULLSCREEN - strlen(s1)*2 - 4)/2)+strlen(s1)] = '\0';
     DBG(s1);
@@ -190,7 +238,7 @@ bool DFRobot_SerialScreen771::setFullScreenColor(eColorMode_t color_){
     return true;
 }
 
-pPacketHeader_t DFRobot_SerialScreen771::packed(uint8_t type, const char *pay_, uint16_t len){
+DFRobot_SerialScreen771::pPacketHeader_t DFRobot_SerialScreen771::packed(uint8_t type, const char *pay_, uint16_t len){
     const char *payload = handleData(type, pay_, len);
     if(payload == NULL){
         DBG("Memory ERROR!");
@@ -256,9 +304,9 @@ const char * DFRobot_SerialScreen771::handleData(uint8_t type, const char *src, 
     memset(dst, 0x00, len);
     switch(type){
         case TYPE_INFROMTION:
-                dst[i++] = M[order];
+                dst[i++] = _M[_order];
                 dst[i++] = 0x41;
-                dst[i++] = moveMode;
+                dst[i++] = _moveMode;
                 dst[i++] = 0x41;
                 for(uint16_t j = 0; j < length; j++ ){
                     dst[2*j+1+i] = src[j];
@@ -311,6 +359,6 @@ void DFRobot_SerialScreen771::sendPacket(pPacketHeader_t header){
         //DBG(i);
         DBG(header->payload[i],HEX);
     }
-    s->write((uint8_t *)header, n+sizeof(sPacketHeader_t));
+    _s->write((uint8_t *)header, n+sizeof(sPacketHeader_t));
     delay(100);
 }

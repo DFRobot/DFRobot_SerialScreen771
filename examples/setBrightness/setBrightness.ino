@@ -1,14 +1,13 @@
 /*!
-  * file setBrightness.ino
-  * Set the brightness level of the display.
-  * @Adjust the brightness level of the display.
-  *
-  * Copyright   [DFRobot](http://www.dfrobot.com), 2016
-  * Copyright   GNU Lesser General Public License
-  *
-  * version  V1.0
-  * date  2019-6-12
-  */
+ * @file setBrightness.ino
+ * @brief Set the brightness level of the display. Adjust the brightness level of the display.
+ * @copyright   Copyright (c) 2010 DFRobot Co.Ltd (http://www.dfrobot.com)
+ * @license     The MIT License (MIT)
+ * @author [Arya](xue.peng@dfrobot.com)
+ * @version  V1.0.0
+ * @date  2019-6-12
+ * @url https://github.com/DFRobot/DFRobot_SerialScreen771
+ */
 
 #include <Arduino.h>
 #include <HardwareSerial.h>
@@ -19,17 +18,17 @@
 SoftwareSerial Serial1(2, 3); //RX, TX
 #endif
 
-DFRobot_SerialScreen771 screen;
+DFRobot_SerialScreen771 screen(Serial1);
 
 void setup() {
-    /*Initialize communication interface (Serial1) and debug interface (Serial)*/
+    // Initialize communication interface (Serial1) and debug interface (Serial)
     Serial.begin(115200);
     Serial1.begin(19200);
-    screen.begin(Serial1);
-    screen.setDbgSerial(Serial);
-    /*Display string "DFRobot"*/
-    screen.setMessage("DFRobot");
-    /*Set the brightness level of the display*/
+    screen.begin();
+
+    // Display string "DFRobot"
+    screen.displayMessage("DFRobot");
+    // Set the brightness level of the display
     /*eBrightLevel_t: eBrightLevel_1 = Brightness level 1
                       eBrightLevel_2 = Brightness level 2
                       eBrightLevel_3 = Brightness level 3
@@ -39,7 +38,7 @@ void setup() {
                       eBrightLevel_7 = Brightness level 7
                       eBrightLevel_8 = Brightness level 8
     */
-    screen.setBrightness(eBrightLevel_1);
+    screen.setBrightness(screen.eBrightLevel_1);
 }
 
 void loop() {
